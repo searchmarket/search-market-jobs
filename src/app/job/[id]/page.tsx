@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
-import { MapPin, Briefcase, DollarSign, Building2, Clock, ArrowLeft, Globe, Mail } from 'lucide-react'
+import { MapPin, Briefcase, DollarSign, Building2, Clock, ArrowLeft, Globe, Send, CheckCircle, Loader2, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 
@@ -20,6 +20,7 @@ interface Job {
   salary_max: number | null
   salary_currency: string
   created_at: string
+  recruiter_id: string
   clients: {
     company_name: string
     industry: string | null
@@ -35,7 +36,23 @@ export default function JobDetailPage() {
   const params = useParams()
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [resumeFile, setResumeFile] = useState<File | null>(null)
   const supabase = createClient()
+
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    linkedin_url: '',
+    current_title: '',
+    current_company: '',
+    years_experience: '',
+    message: ''
+  })
 
   useEffect(() => {
     if (params.id) {
@@ -57,6 +74,81 @@ export default function JobDetailPage() {
       setJob(data as unknown as Job)
     }
     setLoading(false)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!job) return
+
+    setSubmitting(true)
+
+    try {
+      // Create the candidate
+      const { data: candidate, error: candidateError } = await supabase
+        .from('candidates')
+        .insert([{
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          email: formData.email,
+          phone: formData.phone || null,
+          linkedin_url: formData.linkedin_url || null,
+          current_title: formData.current_title || null,
+          current_company: formData.current_company || null,
+          years_experience: formData.years_experience ? parseInt(formData.years_experience) : null,
+          notes: formData.message || null,
+          source: 'Job Board Application',
+          status: 'active',
+          recruiter_id: job.recruiter_id
+        }])
+        .select()
+        .single()
+
+      if (candidateError) {
+        // Check if candidate already exists with this email
+        if (candidateError.code === '23505') {
+          // Get existing candidate
+          const { data: existingCandidate } = await supabase
+            .from('candidates')
+            .select('id')
+            .eq('email', formData.email)
+            .eq('recruiter_id', job.recruiter_id)
+            .single()
+
+          if (existingCandidate) {
+            // Create application for existing candidate
+            await supabase
+              .from('applications')
+              .insert([{
+                job_id: job.id,
+                candidate_id: existingCandidate.id,
+                recruiter_id: job.recruiter_id,
+                stage: 'applied',
+                notes: formData.message || null
+              }])
+          }
+        } else {
+          throw candidateError
+        }
+      } else if (candidate) {
+        // Create application for new candidate
+        await supabase
+          .from('applications')
+          .insert([{
+            job_id: job.id,
+            candidate_id: candidate.id,
+            recruiter_id: job.recruiter_id,
+            stage: 'applied',
+            notes: formData.message || null
+          }])
+      }
+
+      setSubmitted(true)
+    } catch (error) {
+      console.error('Error submitting application:', error)
+      alert('There was an error submitting your application. Please try again.')
+    }
+
+    setSubmitting(false)
   }
 
   const formatLocation = (city: string | null, state: string | null, country: string | null, locationType: string) => {
@@ -220,21 +312,157 @@ export default function JobDetailPage() {
             )}
 
             {/* Apply Section */}
-            <div className="p-6 bg-brand-navy rounded-xl text-white">
-              <h2 className="text-xl font-semibold mb-2">Interested in this position?</h2>
-              <p className="text-gray-300 mb-4">
-                Contact the recruiter to learn more and apply.
-              </p>
-              {job.recruiters?.email && (
-                <a
-                  href={`mailto:${job.recruiters.email}?subject=Application for ${job.title}`}
+            {submitted ? (
+              <div className="p-8 bg-green-50 rounded-xl text-center">
+                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">Application Submitted!</h2>
+                <p className="text-gray-600 mb-4">
+                  Thank you for applying. The recruiter will review your application and contact you if there's a match.
+                </p>
+                <Link href="/" className="text-brand-blue hover:underline">
+                  Browse more jobs
+                </Link>
+              </div>
+            ) : showForm ? (
+              <div className="p-6 bg-gray-50 rounded-xl">
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Apply for this position</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.first_name}
+                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.last_name}
+                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                      <input
+                        type="email"
+                        required
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn Profile</label>
+                    <input
+                      type="url"
+                      value={formData.linkedin_url}
+                      onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                      placeholder="https://linkedin.com/in/yourprofile"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Current Title</label>
+                      <input
+                        type="text"
+                        value={formData.current_title}
+                        onChange={(e) => setFormData({ ...formData, current_title: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Current Company</label>
+                      <input
+                        type="text"
+                        value={formData.current_company}
+                        onChange={(e) => setFormData({ ...formData, current_company: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Years of Experience</label>
+                    <input
+                      type="number"
+                      value={formData.years_experience}
+                      onChange={(e) => setFormData({ ...formData, years_experience: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Why are you interested in this role?</label>
+                    <textarea
+                      rows={4}
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                      placeholder="Tell us about yourself and why you'd be a great fit..."
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowForm(false)}
+                      className="px-6 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-brand-accent text-white font-medium rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-50"
+                    >
+                      {submitting ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Send className="w-5 h-5" />
+                      )}
+                      {submitting ? 'Submitting...' : 'Submit Application'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <div className="p-6 bg-brand-navy rounded-xl text-white">
+                <h2 className="text-xl font-semibold mb-2">Interested in this position?</h2>
+                <p className="text-gray-300 mb-4">
+                  Apply now and let the recruiter know you're interested.
+                </p>
+                <button
+                  onClick={() => setShowForm(true)}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-brand-accent text-white font-medium rounded-lg hover:bg-blue-500 transition-colors"
                 >
-                  <Mail className="w-5 h-5" />
+                  <Send className="w-5 h-5" />
                   Apply Now
-                </a>
-              )}
-            </div>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </main>

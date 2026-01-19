@@ -84,6 +84,7 @@ export default function JobDetailPage() {
 
     try {
       // Create the candidate
+      console.log('Attempting to create candidate...')
       const { data: candidate, error: candidateError } = await supabase
         .from('candidates')
         .insert([{
@@ -102,6 +103,8 @@ export default function JobDetailPage() {
         }])
         .select()
         .single()
+
+      console.log('Candidate result:', candidate, 'Error:', candidateError)
 
       if (candidateError) {
         // Check if candidate already exists with this email
@@ -127,6 +130,7 @@ export default function JobDetailPage() {
               }])
           }
         } else {
+          console.error('Candidate error details:', JSON.stringify(candidateError))
           throw candidateError
         }
       } else if (candidate) {

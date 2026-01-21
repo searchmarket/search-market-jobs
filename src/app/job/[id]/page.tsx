@@ -82,6 +82,9 @@ export default function JobDetailPage() {
 
     setSubmitting(true)
 
+    // Calculate 90-minute exclusive window for the job poster
+    const exclusiveUntil = new Date(Date.now() + 90 * 60 * 1000).toISOString()
+
     try {
       // Create the candidate
       const { data: candidate, error: candidateError } = await supabase
@@ -98,7 +101,8 @@ export default function JobDetailPage() {
           notes: formData.message || null,
           source: 'Job Board Application',
           status: 'active',
-          recruiter_id: job.recruiter_id
+          recruiter_id: job.recruiter_id,
+          exclusive_until: exclusiveUntil
         }])
         .select()
         .single()
@@ -106,10 +110,10 @@ export default function JobDetailPage() {
       if (candidateError) {
         // Check if candidate already exists with this email
         if (candidateError.code === '23505') {
-          // Get existing candidate
+          // Get existing candidate - don't change exclusive window for existing candidates
           const { data: existingCandidate } = await supabase
             .from('candidates')
-            .select('id')
+            .select('id, owned_by')
             .eq('email', formData.email)
             .eq('recruiter_id', job.recruiter_id)
             .single()

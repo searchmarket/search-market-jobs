@@ -40,6 +40,8 @@ export default function JobDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [resumeFile, setResumeFile] = useState<File | null>(null)
+  const [parsingResume, setParsingResume] = useState(false)
+  const [resumeParsed, setResumeParsed] = useState(false)
   const supabase = createClient()
 
   const [formData, setFormData] = useState({
@@ -74,6 +76,59 @@ export default function JobDetailPage() {
       setJob(data as unknown as Job)
     }
     setLoading(false)
+  }
+
+  async function handleResumeUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.type !== 'application/pdf') {
+      alert('Please upload a PDF file')
+      return
+    }
+
+    setParsingResume(true)
+    setResumeFile(file)
+
+    try {
+      const formDataUpload = new FormData()
+      formDataUpload.append('file', file)
+
+      const response = await fetch('/api/parse-resume', {
+        method: 'POST',
+        body: formDataUpload
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to parse resume')
+      }
+
+      const data = await response.json()
+
+      // Fill form with parsed data
+      setFormData(prev => ({
+        ...prev,
+        first_name: data.first_name || prev.first_name,
+        last_name: data.last_name || prev.last_name,
+        email: data.email || prev.email,
+        phone: data.phone || prev.phone,
+        linkedin_url: data.linkedin_url || prev.linkedin_url,
+        current_title: data.current_title || prev.current_title,
+        current_company: data.current_company || prev.current_company,
+        years_experience: data.years_experience?.toString() || prev.years_experience,
+        message: data.summary || prev.message
+      }))
+
+      setResumeParsed(true)
+    } catch (error) {
+      console.error('Error parsing resume:', error)
+      alert(error instanceof Error ? error.message : 'Failed to parse resume')
+      setResumeFile(null)
+    }
+
+    setParsingResume(false)
+    e.target.value = ''
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -144,6 +199,24 @@ export default function JobDetailPage() {
             stage: 'applied',
             notes: formData.message || null
           }])
+
+        // Save resume as Word file if uploaded
+        if (resumeFile) {
+          try {
+            const resumeFormData = new FormData()
+            resumeFormData.append('file', resumeFile)
+            resumeFormData.append('candidateId', candidate.id)
+            resumeFormData.append('recruiterId', job.recruiter_id)
+
+            await fetch('/api/save-resume', {
+              method: 'POST',
+              body: resumeFormData
+            })
+          } catch (resumeError) {
+            console.error('Error saving resume file:', resumeError)
+            // Don't fail the application if resume save fails
+          }
+        }
       }
 
       setSubmitted(true)
@@ -304,6 +377,40 @@ export default function JobDetailPage() {
             ) : showForm ? (
               <div className="p-6 bg-gray-50 rounded-xl">
                 <h2 className="text-xl font-semibold text-gray-900 mb-6">Apply for this position</h2>
+                
+                {/* Resume Upload Section */}
+                <div className="mb-6 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-white">
+                  <div className="text-center">
+                    {resumeParsed ? (
+                      <div className="flex items-center justify-center gap-2 text-green-600">
+                        <CheckCircle className="w-5 h-5" />
+                        <span className="font-medium">Resume parsed: {resumeFile?.name}</span>
+                      </div>
+                    ) : parsingResume ? (
+                      <div className="flex items-center justify-center gap-2 text-gray-600">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Parsing resume...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-600 mb-2">Upload your resume to auto-fill the form</p>
+                        <label className="inline-flex items-center gap-2 px-4 py-2 bg-brand-accent text-white font-medium rounded-lg hover:bg-blue-500 cursor-pointer transition-colors">
+                          <Upload className="w-4 h-4" />
+                          Upload PDF Resume
+                          <input
+                            type="file"
+                            accept=".pdf"
+                            onChange={handleResumeUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        <p className="text-xs text-gray-500 mt-2">Or fill in the form manually below</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>

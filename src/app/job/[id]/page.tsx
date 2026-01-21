@@ -234,16 +234,13 @@ export default function JobDetailPage() {
           <div className="p-8 border-b border-gray-100">
             <div className="flex items-start gap-4 mb-6">
               <div className="w-16 h-16 bg-brand-blue/10 rounded-xl flex items-center justify-center text-brand-blue font-bold text-xl">
-                {job.clients?.company_name?.substring(0, 2).toUpperCase() || 'CO'}
+                {job.clients?.industry?.substring(0, 2).toUpperCase() || 'JB'}
               </div>
               <div className="flex-1">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">{job.title}</h1>
                 <div className="flex items-center gap-2 text-lg text-gray-600">
                   <Building2 className="w-5 h-5" />
-                  <span>{job.clients?.company_name || 'Company'}</span>
-                  {job.clients?.industry && (
-                    <span className="text-gray-400">• {job.clients.industry}</span>
-                  )}
+                  <span>{job.clients?.industry || 'Confidential'}</span>
                 </div>
               </div>
             </div>
@@ -275,43 +272,20 @@ export default function JobDetailPage() {
             {job.description && (
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">About the Role</h2>
-                <div className="text-gray-600 whitespace-pre-wrap leading-relaxed">
-                  {job.description}
-                </div>
+                <div 
+                  className="text-gray-600 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: job.description }}
+                />
               </div>
             )}
 
             {job.requirements && (
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Requirements</h2>
-                <div className="text-gray-600 whitespace-pre-wrap leading-relaxed">
-                  {job.requirements}
-                </div>
-              </div>
-            )}
-
-            {/* Company Info */}
-            {job.clients && (
-              <div className="mb-8 p-6 bg-gray-50 rounded-xl">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">About {job.clients.company_name}</h2>
-                <div className="flex flex-wrap gap-4">
-                  {job.clients.industry && (
-                    <div className="text-gray-600">
-                      <span className="font-medium">Industry:</span> {job.clients.industry}
-                    </div>
-                  )}
-                  {job.clients.website && (
-                    <a 
-                      href={job.clients.website.startsWith('http') ? job.clients.website : `https://${job.clients.website}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-brand-blue hover:underline"
-                    >
-                      <Globe className="w-4 h-4" />
-                      Company Website
-                    </a>
-                  )}
-                </div>
+                <div 
+                  className="text-gray-600 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: job.requirements }}
+                />
               </div>
             )}
 

@@ -184,16 +184,13 @@ export default function JobsPage() {
                   <div className="flex-1">
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 bg-brand-blue/10 rounded-lg flex items-center justify-center text-brand-blue font-semibold shrink-0">
-                        {job.clients?.company_name?.substring(0, 2).toUpperCase() || 'CO'}
+                        {job.clients?.industry?.substring(0, 2).toUpperCase() || 'JB'}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h2 className="text-xl font-semibold text-gray-900 mb-1">{job.title}</h2>
                         <div className="flex items-center gap-2 text-gray-600 mb-3">
                           <Building2 className="w-4 h-4" />
-                          <span>{job.clients?.company_name || 'Company'}</span>
-                          {job.clients?.industry && (
-                            <span className="text-gray-400">• {job.clients.industry}</span>
-                          )}
+                          <span>{job.clients?.industry || 'Confidential'}</span>
                         </div>
                         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                           <div className="flex items-center gap-1">

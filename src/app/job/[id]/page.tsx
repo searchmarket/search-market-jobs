@@ -131,6 +131,16 @@ export default function JobDetailPage() {
     e.target.value = ''
   }
 
+  // Helper to normalize URLs - adds https:// if missing
+  function normalizeUrl(url: string | null): string | null {
+    if (!url || url.trim() === '') return null
+    const trimmed = url.trim()
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed
+    }
+    return `https://${trimmed}`
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!job) return
@@ -149,7 +159,7 @@ export default function JobDetailPage() {
           last_name: formData.last_name,
           email: formData.email,
           phone: formData.phone || null,
-          linkedin_url: formData.linkedin_url || null,
+          linkedin_url: normalizeUrl(formData.linkedin_url),
           current_title: formData.current_title || null,
           current_company: formData.current_company || null,
           years_experience: formData.years_experience ? parseInt(formData.years_experience) : null,
@@ -460,7 +470,7 @@ export default function JobDetailPage() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn Profile</label>
                     <input
-                      type="url"
+                      type="text"
                       value={formData.linkedin_url}
                       onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
                       className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent"

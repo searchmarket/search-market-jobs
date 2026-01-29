@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
   try {
@@ -79,13 +76,26 @@ export async function POST(request: NextRequest) {
       </div>
     `
 
-    await resend.emails.send({
-      from: 'Search Market <notifications@search.market>',
-      to: recruiter_email,
-      replyTo: email,
-      subject: `New Talent Request from ${name} at ${company_name}`,
-      html: emailHtml
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'Search Market <notifications@search.market>',
+        to: recruiter_email,
+        reply_to: email,
+        subject: `New Talent Request from ${name} at ${company_name}`,
+        html: emailHtml
+      })
     })
+
+    if (!response.ok) {
+      const error = await response.text()
+      console.error('Resend API error:', error)
+      return NextResponse.json({ error: 'Failed to send email' }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -148,6 +148,7 @@ export default function JobDetailPage() {
     setSubmitting(true)
 
     // Calculate 90-minute exclusive window for the job poster
+    // Canonical value: OWNERSHIP_TIMEOUTS.JOB_APPLICATION_EXCLUSIVE_MS in search-market-ats/src/lib/ownership.ts
     const exclusiveUntil = new Date(Date.now() + 90 * 60 * 1000).toISOString()
 
     try {
